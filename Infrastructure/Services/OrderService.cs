@@ -9,13 +9,16 @@ using Core.Specifications;
 namespace Infrastructure.Services
 {
     public class OrderService : IOrderService
-    {        
+    {
         private readonly IBasketRepository _basketRepo;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IPaymentService _paymentService;
 
         public OrderService(IUnitOfWork unitOfWork,
-        IBasketRepository basketRepo)
+        IBasketRepository basketRepo,
+        IPaymentService paymentService)
         {
+            _paymentService = paymentService;
             _unitOfWork = unitOfWork;
             _basketRepo = basketRepo;
         }
@@ -42,17 +45,24 @@ namespace Infrastructure.Services
             // calc subtotal
             var subtotal = items.Sum(item => item.Price * item.Quantity);
 
+            // check to see if order exists
+            var spec = new OrderByPaymentIntentIdSpecification(basket.PaymenIntentId);
+            var existingOrder = await _unitOfWork.Repository<Order>().GetEntityWithSpec(spec);
+
+            if (existingOrder != null)
+            {
+                _unitOfWork.Repository<Order>().Delete(existingOrder);
+                await _paymentService.CreateOrUpdatePaymentIntent(basket.PaymenIntentId);
+            }
+
             // create order
-            var order = new Order(items, buyerEmail, shippingAddress, deliveryMethod, subtotal);
+            var order = new Order(items, buyerEmail, shippingAddress, deliveryMethod, subtotal, basket.PaymenIntentId);
             _unitOfWork.Repository<Order>().Ad(order);
 
             // TODO: save to db
             var result = await _unitOfWork.Complete();
 
             if (result <= 0) return null;
-
-            // delete basket
-            await _basketRepo.DeleteBasketAsync(basketId);
 
             // return order
             return order;
@@ -67,11 +77,11 @@ namespace Infrastructure.Services
         public async Task<Order> GetOrderByIdAsync(int id, string buyerEmail)
         {
             var spec = new OrdersWithItemsAndOrderingSpecification(id, buyerEmail);
-            
+
             return await _unitOfWork.Repository<Order>().GetEntityWithSpec(spec);
         }
 
-        public async Task<IReadOnlyList<Order>> GetOrdersForUsersAsync(string buyerEmail)
+        public async Task<IReadOnlyList<Order>> GetOrdersForUserAsync(string buyerEmail)
         {
             var spec = new OrdersWithItemsAndOrderingSpecification(buyerEmail);
 

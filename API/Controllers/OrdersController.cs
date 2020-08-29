@@ -43,11 +43,11 @@ namespace API.Controllers
         {
             var email = HttpContext.User.RetrieveEmailFromPrincipal();
 
-            var orders = await _orderService.GetOrdersForUsersAsync(email);
+            var orders = await _orderService.GetOrdersForUserAsync(email);
 
-            return Ok(
-                _mapper.Map<IReadOnlyList<Order>, IReadOnlyList<OrderToReturnDto>>(orders)
-            );
+            var ordersToReturn = _mapper.Map<IReadOnlyList<Order>, IReadOnlyList<OrderToReturnDto>>(orders);
+
+            return Ok(ordersToReturn);
         }
 
         [HttpGet("{id}")]
