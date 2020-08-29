@@ -10,7 +10,10 @@
           class="custom-select mb-4"
           (change)="onSortSelected($event.target.value)"
         >
-          <Option *ngFor="let sort of sortOptions" [value]="sort.value">
+          <Option 
+            *ngFor="let sort of sortOptions" 
+            [selected]="shopParams.sort === sort.value"
+            [value]="sort.value">
             {{ sort.name }}
           </Option>
         </select>
@@ -80,6 +83,7 @@
         <app-pager
           [pageSize]="shopParams.pageSize"
           [totalCount]="totalCount"
+          [pageNumber]="shopParams.pageNumber"
           (pageChanged)="onPageChanged($event)"
         ></app-pager>
       </div>
